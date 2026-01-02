@@ -90,7 +90,7 @@ async function ensureFfmpeg(){
 
   ffmpeg = createFFmpeg({
     log: false,
-    corePath: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js",
+    corePath: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
   });
 
   setStatus("Загрузка ffmpeg.wasm...");
@@ -338,3 +338,4 @@ els.generate.addEventListener("click", async () => {
     setProgress(0);
   }
 });
+
