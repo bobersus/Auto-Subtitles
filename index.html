@@ -1,1008 +1,137 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Subtitles Tool — распознавание ИЗ ВИДЕО (Whisper, оффлайн)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Auto Subtitles (Browser)</title>
 
-  <!-- UI -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto:wght@400;700&family=Montserrat:wght@400;600&family=Open+Sans:wght@400;600&family=Poppins:wght@400;600&family=Playfair+Display:wght@400;600&family=Fira+Sans:wght@400;600&family=Ubuntu:wght@400;500&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Open+Sans:wght@400;600;800&family=Roboto:wght@400;700;900&display=swap"
+    rel="stylesheet"
+  />
 
-  <style>
-    :root{
-      --bg:#0b1220; --panel:rgba(255,255,255,.06); --panel2:rgba(255,255,255,.08);
-      --text:rgba(255,255,255,.92); --muted:rgba(255,255,255,.65); --border:rgba(255,255,255,.12);
-      --accent:#7dd3fc; --danger:#fb7185; --ok:#34d399;
-
-      --sub-font:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      --sub-size:34px; --sub-color:#fff; --sub-bg:rgba(0,0,0,.35);
-      --sub-shadow:0 2px 12px rgba(0,0,0,.55);
-      --sub-stroke:1px; --sub-stroke-color:#000; --sub-y:86%;
-      --anim-duration:.6s;
-    }
-    body{
-      background: radial-gradient(1200px 600px at 20% 10%, rgba(125,211,252,.10), transparent 60%),
-                  radial-gradient(900px 500px at 85% 35%, rgba(52,211,153,.10), transparent 60%),
-                  var(--bg);
-      color:var(--text);
-      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    }
-    .cardish{ background:var(--panel); border:1px solid var(--border); border-radius:16px; backdrop-filter: blur(10px); }
-    .small-muted{ color:var(--muted); }
-    .mono{ font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
-    .badge-soft{ background:rgba(125,211,252,.14); color:rgba(255,255,255,.92); border:1px solid rgba(125,211,252,.25); }
-
-    .video-wrap{
-      position:relative; width:100%; aspect-ratio:16/9;
-      background:rgba(255,255,255,.04); border:1px solid var(--border);
-      border-radius:16px; overflow:hidden;
-    }
-    video{ width:100%; height:100%; object-fit:contain; background:#000; }
-
-    #subOverlay{ position:absolute; inset:0; pointer-events:none; }
-    #subBox{ position:absolute; left:50%; top:var(--sub-y); transform:translate(-50%,-50%); width:min(92%,980px); text-align:center; }
-    #subText{
-      display:inline-block;
-      font-family:var(--sub-font); font-size:var(--sub-size); line-height:1.15; color:var(--sub-color);
-      padding:.35em .6em; border-radius:14px; background:var(--sub-bg); box-shadow:var(--sub-shadow);
-      text-shadow:
-        calc(var(--sub-stroke) * 1) 0 0 var(--sub-stroke-color),
-        calc(var(--sub-stroke) * -1) 0 0 var(--sub-stroke-color),
-        0 calc(var(--sub-stroke) * 1) 0 var(--sub-stroke-color),
-        0 calc(var(--sub-stroke) * -1) 0 var(--sub-stroke-color),
-        0 2px 12px rgba(0,0,0,.55);
-      opacity:0; will-change:transform,opacity;
-    }
-
-    .anim-fade{ animation:fadeIn var(--anim-duration) ease-out forwards; }
-    @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
-
-    .anim-bounce{ animation:bounceIn var(--anim-duration) cubic-bezier(.2,.9,.2,1.15) forwards; }
-    @keyframes bounceIn{
-      0%{opacity:0; transform:translateY(18px) scale(.98)}
-      60%{opacity:1; transform:translateY(-6px) scale(1.01)}
-      100%{opacity:1; transform:translateY(0) scale(1)}
-    }
-
-    .anim-scale{ animation:scaleUp var(--anim-duration) cubic-bezier(.2,.9,.2,1) forwards; }
-    @keyframes scaleUp{ from{opacity:0; transform:scale(.8)} to{opacity:1; transform:scale(1)} }
-
-    .anim-typewriter{ animation:fadeIn var(--anim-duration) ease-out forwards; }
-
-    .form-control,.form-select{
-      background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:rgba(255,255,255,.92);
-    }
-    .form-control:focus,.form-select:focus{
-      background:rgba(255,255,255,.07); color:rgba(255,255,255,.95);
-      border-color:rgba(125,211,252,.45); box-shadow:0 0 0 .2rem rgba(125,211,252,.15);
-    }
-    .btn-outline-light{ border-color:rgba(255,255,255,.18); }
-    .alert{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:rgba(255,255,255,.92); }
-    #statusDot{ display:inline-block; width:10px;height:10px;border-radius:50%; background:rgba(255,255,255,.35); margin-right:8px; }
-    .dot-ok{ background:var(--ok)!important } .dot-warn{ background:#facc15!important } .dot-bad{ background:var(--danger)!important }
-    table{ color:var(--text)!important }
-    .table > :not(caption) > * > *{ background:transparent!important; border-color:rgba(255,255,255,.10)!important; }
-    .table-hover tbody tr:hover{ background:rgba(255,255,255,.06)!important; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-<div class="container py-4 py-md-5">
-  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
-    <div>
-      <h1 class="mb-1">Авто-субтитры <span class="badge badge-soft ms-2">из видео • оффлайн Whisper</span></h1>
-      <div class="small-muted">
-        Всё в браузере. Никакого сервера. Аудио извлекаем из видео и распознаём локально.
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">CC</div>
+        <div>
+          <div class="title">Auto Subtitles</div>
+          <div class="subtitle">В браузере • До 1 минуты • RU / EN</div>
+        </div>
       </div>
-    </div>
-    <div class="text-end small-muted">
-      <div class="mono">subtitles_tool.html</div>
-      <div>Лучше на ПК: <b>Chrome/Edge</b></div>
-    </div>
-  </div>
+      <div class="badge">Whisper / Transformers.js</div>
+    </header>
 
-  <div class="alert alert-warning cardish mb-4">
-    <b>Загрузка модели Whisper:</b> при первом запуске браузер скачает модель по CDN (только это “в интернет”).
-    Дальше можно кэшировать в браузере. На слабых устройствах распознавание будет медленным.
-  </div>
+    <main class="grid">
+      <!-- Player -->
+      <section class="playerCard">
+        <div class="playerWrap">
+          <video id="video" class="video" controls playsinline></video>
 
-  <div class="row g-3 mb-4">
-    <div class="col-lg-5">
-      <div class="cardish p-3 h-100">
-        <h5 class="mb-2">1) Загрузка</h5>
-        <input id="videoInput" type="file" accept="video/*" class="form-control"/>
-        <div class="small-muted mt-1">Ограничение: ≤ <b>60 секунд</b></div>
-
-        <div class="row g-2 align-items-end mt-2">
-          <div class="col-7">
-            <label class="form-label small-muted mb-1">Язык</label>
-            <select id="langSelect" class="form-select">
-              <option value="" selected>Выберите…</option>
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-          <div class="col-5">
-            <button id="genBtn" class="btn btn-primary w-100" disabled>Сгенерировать</button>
+          <!-- Overlay subtitles -->
+          <div id="subtitleOverlay" class="subtitleOverlay" aria-live="polite">
+            <div id="subtitleText" class="subtitleText">Загрузите видео и нажмите “Сгенерировать”</div>
           </div>
         </div>
 
-        <div class="mt-3 p-2 rounded" style="background:var(--panel2); border:1px solid var(--border);">
-          <div class="d-flex align-items-center gap-2">
-            <span id="statusDot"></span>
-            <div>
-              <div class="fw-semibold">Статус</div>
-              <div id="statusText" class="small-muted">Загрузите видео и выберите язык.</div>
+        <div class="statusRow">
+          <div class="status" id="status">Готово</div>
+          <div class="progressWrap">
+            <div class="progressBar" id="progressBar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Controls (Glassmorphism) -->
+      <section class="panel glass">
+        <h2>Панель управления</h2>
+
+        <div class="field">
+          <label>Видео (MP4 / WebM, до 1 минуты)</label>
+          <input id="file" type="file" accept="video/mp4,video/webm" />
+          <div class="hint">Совет: для точного тайминга лучше Whisper. Web Speech API менее точен.</div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Язык распознавания</label>
+            <div class="segmented">
+              <input type="radio" name="lang" id="langRu" value="ru" checked />
+              <label for="langRu">Русский</label>
+              <input type="radio" name="lang" id="langEn" value="en" />
+              <label for="langEn">English</label>
             </div>
           </div>
-          <div class="progress mt-2" style="height:8px; background:rgba(255,255,255,.08);">
-            <div id="progressBar" class="progress-bar" style="width:0%"></div>
-          </div>
-          <div class="small-muted mt-2">
-            Чем короче видео и чище речь — тем лучше.
+
+          <div class="field">
+            <label>Источник распознавания</label>
+            <select id="engine">
+              <option value="whisper" selected>OpenAI Whisper API (рекомендуется)</option>
+              <option value="transformers">Transformers.js (на клиенте, тяжело)</option>
+              <option value="demo">Demo (быстро проверить UI)</option>
+            </select>
           </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <button id="downloadSrtBtn" class="btn btn-outline-light" disabled>Скачать SRT</button>
-          <button id="downloadVttBtn" class="btn btn-outline-light" disabled>Скачать VTT</button>
-          <button id="resetBtn" class="btn btn-outline-light ms-auto">Сброс</button>
-        </div>
-      </div>
-    </div>
+        <div class="row2">
+          <div class="field">
+            <label>Размер шрифта: <span id="fontSizeVal">44</span>px</label>
+            <input id="fontSize" type="range" min="18" max="80" value="44" />
+          </div>
 
-    <div class="col-lg-7">
-      <div class="cardish p-3 h-100">
-        <h5 class="mb-2">2) Превью + overlay</h5>
-        <div class="video-wrap">
-          <video id="video" controls playsinline></video>
-          <div id="subOverlay">
-            <div id="subBox"><div id="subText"></div></div>
+          <div class="field">
+            <label>Положение Y: <span id="yPosVal">82</span>%</label>
+            <input id="yPos" type="range" min="40" max="95" value="82" />
           </div>
         </div>
-        <div class="small-muted mt-2">
-          Overlay рисуется поверх видео. Сегменты синхронизируются по таймкодам.
+
+        <div class="row2">
+          <div class="field">
+            <label>Шрифт</label>
+            <select id="fontFamily">
+              <option value="Montserrat, system-ui, sans-serif" selected>Montserrat</option>
+              <option value="Roboto, system-ui, sans-serif">Roboto</option>
+              <option value="'Open Sans', system-ui, sans-serif">Open Sans</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Анимация</label>
+            <select id="anim">
+              <option value="fade" selected>Fade (затухание)</option>
+              <option value="bounce">Bounce (отскок)</option>
+              <option value="scale">Scale (увеличение)</option>
+              <option value="typewriter">Typewriter (буквы)</option>
+            </select>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div class="row2">
+          <button id="generate" class="btn primary">Сгенерировать субтитры</button>
+          <button id="clear" class="btn">Очистить</button>
+        </div>
+
+        <details class="notes">
+          <summary>Примечания по Whisper / Transformers.js</summary>
+          <ul>
+            <li><b>Whisper API</b>: требует сервер или прокси (не храните ключ в фронтенде). Тут оставлена заглушка.</li>
+            <li><b>Transformers.js</b>: локально в браузере возможно, но тяжело: модели большие, нужен COOP/COEP для некоторых сценариев.</li>
+          </ul>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Наложение субтитров: CSS overlay (можно заменить на Canvas при желании).</span>
+    </footer>
   </div>
 
-  <div class="cardish p-3 mb-4">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-      <h5 class="mb-0">3) Настройки субтитров</h5>
-      <div class="small-muted">Стили применяются мгновенно.</div>
-    </div>
-
-    <div class="row g-3">
-      <div class="col-md-3">
-        <label class="form-label small-muted">Размер: <span id="fontSizeVal" class="mono"></span></label>
-        <input id="fontSize" type="range" class="form-range" min="16" max="72" step="1"/>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Y: <span id="yPosVal" class="mono"></span></label>
-        <input id="yPos" type="range" class="form-range" min="0" max="100" step="1"/>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Шрифт</label>
-        <select id="fontFamily" class="form-select">
-          <option value="Inter">Inter</option>
-          <option value="Roboto">Roboto</option>
-          <option value="Montserrat">Montserrat</option>
-          <option value="Open Sans">Open Sans</option>
-          <option value="Poppins">Poppins</option>
-          <option value="Playfair Display">Playfair Display</option>
-          <option value="Fira Sans">Fira Sans</option>
-          <option value="Ubuntu">Ubuntu</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Цвет</label>
-        <input id="textColor" type="color" class="form-control form-control-color w-100" value="#ffffff"/>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label small-muted">Фон (α): <span id="bgAlphaVal" class="mono"></span></label>
-        <input id="bgAlpha" type="range" class="form-range" min="0" max="0.85" step="0.05"/>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Обводка: <span id="strokeVal" class="mono"></span></label>
-        <input id="stroke" type="range" class="form-range" min="0" max="3" step="1"/>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Цвет обводки</label>
-        <input id="strokeColor" type="color" class="form-control form-control-color w-100" value="#000000"/>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Тень: <span id="shadowVal" class="mono"></span></label>
-        <input id="shadow" type="range" class="form-range" min="0" max="1" step="0.05"/>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label small-muted">Анимация</label>
-        <select id="animType" class="form-select">
-          <option value="fade">Fade</option>
-          <option value="bounce">Bounce</option>
-          <option value="scale">Scale</option>
-          <option value="typewriter">Typewriter</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small-muted">Длительность: <span id="animDurVal" class="mono"></span></label>
-        <input id="animDuration" type="range" class="form-range" min="0.2" max="1.5" step="0.1"/>
-      </div>
-    </div>
-  </div>
-
-  <div class="cardish p-3 mb-5">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-      <h5 class="mb-0">4) Сегменты</h5>
-      <div class="small-muted">Можно редактировать текст, затем экспортировать.</div>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead>
-          <tr class="small-muted">
-            <th style="width:90px;">#</th>
-            <th style="width:170px;">Start</th>
-            <th style="width:170px;">End</th>
-            <th>Text</th>
-            <th style="width:170px;">Действия</th>
-          </tr>
-        </thead>
-        <tbody id="segmentsTbody">
-          <tr><td colspan="5" class="small-muted">Пока пусто.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ========= Whisper (Transformers.js) =========
-  Это оффлайн-инференс в браузере.
-  Библиотека скачивает модель и запускает локально.
--->
-<script type="module">
-  import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
-
-  // ВАЖНО: кэш в браузере (чтобы модель не качалась заново)
-  env.useBrowserCache = true;
-  env.allowLocalModels = false;
-
-  // Дальше — твой код, но ensurePipeline теперь использует pipeline() напрямую:
-
-  let asrPipeline = null;
-
-  async function ensurePipeline(setStatus) {
-    if (asrPipeline) return asrPipeline;
-
-    const modelId = "Xenova/whisper-small"; // можно tiny для скорости
-
-    const progress_callback = (p) => {
-      if (typeof p?.progress === "number") {
-        setStatus?.(`Загрузка модели: ${p.status || "..."}`, "warn", 15 + Math.round(p.progress * 35));
-      } else {
-        setStatus?.("Загрузка модели…", "warn", 20);
-      }
-    };
-
-    asrPipeline = await pipeline("automatic-speech-recognition", modelId, { progress_callback });
-    return asrPipeline;
-  }
-
-  // 👉 Ниже вставь весь остальной JS твоего приложения
-  // (extractAudioPCM16kFromVideoFile, buildSegmentsFromWhisper, UI и т.д.)
-  // Только в месте вызова пайплайна используй:
-  // const pipe = await ensurePipeline(setStatus);
-  // const result = await pipe(pcm16k, { return_timestamps: true, language: lang, task: "transcribe" });
-
-</script>
-
-
-<script>
-  // ============================================================
-  // State + helpers
-  // ============================================================
-  const el = (id) => document.getElementById(id);
-
-  const ui = {
-    videoInput: el("videoInput"),
-    langSelect: el("langSelect"),
-    genBtn: el("genBtn"),
-    video: el("video"),
-    subText: el("subText"),
-
-    statusDot: el("statusDot"),
-    statusText: el("statusText"),
-    progressBar: el("progressBar"),
-
-    downloadSrtBtn: el("downloadSrtBtn"),
-    downloadVttBtn: el("downloadVttBtn"),
-    resetBtn: el("resetBtn"),
-
-    fontSize: el("fontSize"),
-    yPos: el("yPos"),
-    fontFamily: el("fontFamily"),
-    textColor: el("textColor"),
-    bgAlpha: el("bgAlpha"),
-    stroke: el("stroke"),
-    strokeColor: el("strokeColor"),
-    shadow: el("shadow"),
-    animType: el("animType"),
-    animDuration: el("animDuration"),
-
-    fontSizeVal: el("fontSizeVal"),
-    yPosVal: el("yPosVal"),
-    bgAlphaVal: el("bgAlphaVal"),
-    strokeVal: el("strokeVal"),
-    shadowVal: el("shadowVal"),
-    animDurVal: el("animDurVal"),
-
-    tbody: el("segmentsTbody"),
-  };
-
-  const DEFAULTS = {
-    subFont: "Inter",
-    subSize: 34,
-    subY: 86,
-    subColor: "#ffffff",
-    subBgAlpha: 0.35,
-    subStroke: 1,
-    subStrokeColor: "#000000",
-    subShadow: 0.55,
-    animType: "fade",
-    animDuration: 0.6,
-  };
-
-  const state = {
-    videoLoaded: false,
-    videoUrl: null,
-    durationSec: 0,
-    segments: [],
-    nextSegId: 1,
-    activeSegId: null,
-    overlayRAF: null,
-
-    // Whisper
-    asrPipeline: null,
-    running: false,
-    lastTranscriptText: "",
-  };
-
-  function log(...args){ console.log("[WhisperSubTool]", ...args); }
-
-  function setStatus(text, level="neutral", progress=null){
-    ui.statusText.textContent = text;
-    ui.statusDot.classList.remove("dot-ok","dot-warn","dot-bad");
-    if(level==="ok") ui.statusDot.classList.add("dot-ok");
-    if(level==="warn") ui.statusDot.classList.add("dot-warn");
-    if(level==="bad") ui.statusDot.classList.add("dot-bad");
-    if(progress !== null){
-      ui.progressBar.style.width = Math.max(0, Math.min(100, progress)) + "%";
-    }
-  }
-
-  function formatTimeSRT(seconds){
-    const s = Math.max(0, seconds);
-    const hh = Math.floor(s/3600);
-    const mm = Math.floor((s%3600)/60);
-    const ss = Math.floor(s%60);
-    const ms = Math.floor((s - Math.floor(s))*1000);
-    return `${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")},${String(ms).padStart(3,"0")}`;
-  }
-  function formatTimeVTT(seconds){
-    const s = Math.max(0, seconds);
-    const hh = Math.floor(s/3600);
-    const mm = Math.floor((s%3600)/60);
-    const ss = Math.floor(s%60);
-    const ms = Math.floor((s - Math.floor(s))*1000);
-    return `${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}.${String(ms).padStart(3,"0")}`;
-  }
-  function clampSegment(seg){
-    const minGap = 0.2;
-    seg.start = Math.max(0, seg.start);
-    seg.end = Math.max(seg.start + minGap, seg.end);
-    seg.text = (seg.text || "").replace(/\s+/g," ").trim();
-    return seg;
-  }
-  function downloadTextFile(filename, content, mime="text/plain"){
-    const blob = new Blob([content], {type: mime});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
-  }
-  function escapeHtml(str){
-    return String(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  // ============================================================
-  // Settings -> CSS vars
-  // ============================================================
-  function applySettings(){
-    document.documentElement.style.setProperty("--sub-font", `"${ui.fontFamily.value}", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`);
-    document.documentElement.style.setProperty("--sub-size", `${ui.fontSize.value}px`);
-    document.documentElement.style.setProperty("--sub-y", `${ui.yPos.value}%`);
-    document.documentElement.style.setProperty("--sub-color", ui.textColor.value);
-
-    const alpha = parseFloat(ui.bgAlpha.value);
-    document.documentElement.style.setProperty("--sub-bg", `rgba(0,0,0,${alpha})`);
-
-    document.documentElement.style.setProperty("--sub-stroke", `${ui.stroke.value}px`);
-    document.documentElement.style.setProperty("--sub-stroke-color", ui.strokeColor.value);
-
-    const sh = parseFloat(ui.shadow.value);
-    document.documentElement.style.setProperty("--sub-shadow", `0 2px 12px rgba(0,0,0,${sh})`);
-
-    document.documentElement.style.setProperty("--anim-duration", `${parseFloat(ui.animDuration.value)}s`);
-
-    ui.fontSizeVal.textContent = `${ui.fontSize.value}px`;
-    ui.yPosVal.textContent = `${ui.yPos.value}%`;
-    ui.bgAlphaVal.textContent = alpha.toFixed(2);
-    ui.strokeVal.textContent = `${ui.stroke.value}px`;
-    ui.shadowVal.textContent = sh.toFixed(2);
-    ui.animDurVal.textContent = `${parseFloat(ui.animDuration.value).toFixed(1)}s`;
-  }
-
-  const settingInputs = [ui.fontSize, ui.yPos, ui.fontFamily, ui.textColor, ui.bgAlpha, ui.stroke, ui.strokeColor, ui.shadow, ui.animType, ui.animDuration];
-  settingInputs.forEach(x => x.addEventListener("input", applySettings));
-  settingInputs.forEach(x => x.addEventListener("change", applySettings));
-
-  function resetSettings(){
-    ui.fontFamily.value = DEFAULTS.subFont;
-    ui.fontSize.value = DEFAULTS.subSize;
-    ui.yPos.value = DEFAULTS.subY;
-    ui.textColor.value = DEFAULTS.subColor;
-    ui.bgAlpha.value = DEFAULTS.subBgAlpha;
-    ui.stroke.value = DEFAULTS.subStroke;
-    ui.strokeColor.value = DEFAULTS.subStrokeColor;
-    ui.shadow.value = DEFAULTS.subShadow;
-    ui.animType.value = DEFAULTS.animType;
-    ui.animDuration.value = DEFAULTS.animDuration;
-    applySettings();
-  }
-  resetSettings();
-
-  // ============================================================
-  // Video load + validation
-  // ============================================================
-  ui.videoInput.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if(!file) return;
-
-    cleanupSegmentsOnly();
-
-    if(state.videoUrl) URL.revokeObjectURL(state.videoUrl);
-    state.videoUrl = URL.createObjectURL(file);
-    ui.video.src = state.videoUrl;
-
-    setStatus("Загружаем видео…", "neutral", 10);
-    ui.genBtn.disabled = true;
-
-    await new Promise((resolve) => {
-      const on = () => { ui.video.removeEventListener("loadedmetadata", on); resolve(); };
-      ui.video.addEventListener("loadedmetadata", on);
-    });
-
-    state.durationSec = ui.video.duration || 0;
-    state.videoLoaded = true;
-
-    if(!Number.isFinite(state.durationSec) || state.durationSec <= 0){
-      setStatus("Не удалось прочитать длительность.", "bad", 0);
-      return;
-    }
-    if(state.durationSec > 60){
-      setStatus(`Ошибка: ${state.durationSec.toFixed(1)} сек. Нужно ≤ 60 сек.`, "bad", 0);
-      return;
-    }
-
-    setStatus(`Видео готово (${state.durationSec.toFixed(1)} сек). Выберите язык и нажмите “Сгенерировать”.`, "ok", 0);
-    updateGenState();
-  });
-
-  ui.langSelect.addEventListener("change", updateGenState);
-
-  function updateGenState(){
-    ui.genBtn.disabled = !(state.videoLoaded && ui.langSelect.value && state.durationSec <= 60 && !state.running);
-  }
-
-  // ============================================================
-  // Whisper pipeline init + audio extraction
-  // ============================================================
-async function ensurePipeline(lang){
-  const ok = await window.__ensureTransformersLoaded?.(setStatus);
-if (!ok) {
-  throw new Error("Не удалось загрузить Transformers.js. Проверь интернет/блокировщик/попробуй другой браузер.");
-}
-
-  if (state.asrPipeline) return state.asrPipeline;
-
-  setStatus("Загружаем Whisper (первый раз может быть долго)…", "warn", 15);
-
-  // ✅ ВАЖНО: корректный глобал библиотеки
-  const T =
-    (typeof transformers !== "undefined" && transformers) ||
-    (typeof window !== "undefined" && window.transformers) ||
-    (typeof self !== "undefined" && self.transformers);
-
-  if (!T || !T.pipeline) {
-    console.error("Transformers.js не загрузился. Глобал:", { transformers: typeof transformers, w: window?.transformers });
-    throw new Error("Не удалось загрузить библиотеку распознавания (Transformers.js). Проверьте интернет/блокировщик/запуск не в Safari.");
-  }
-
-  // (необязательно, но полезно)
-  T.env.allowLocalModels = false;
-  T.env.useBrowserCache = true;
-
-  const modelId = "Xenova/whisper-small";
-
-  const progress_callback = (p) => {
-    if (typeof p?.progress === "number") {
-      setStatus(`Загрузка модели: ${p.status || "..."}`, "warn", 15 + Math.round(p.progress * 35));
-    } else {
-      setStatus("Загрузка модели…", "warn", 20);
-    }
-  };
-
-  state.asrPipeline = await T.pipeline(
-    "automatic-speech-recognition",
-    modelId,
-    { progress_callback }
-  );
-
-  console.log("Pipeline ready:", modelId);
-  return state.asrPipeline;
-}
-
-  async function extractAudioPCM16kFromVideoFile(file){
-    // Декодируем видео/аудио в AudioBuffer через WebAudio
-    setStatus("Извлекаем аудио из видео…", "ok", 55);
-
-    const arrayBuf = await file.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    // decodeAudioData может упасть на некоторых кодеках — тогда честно скажем
-    let audioBuffer;
-    try{
-      audioBuffer = await audioCtx.decodeAudioData(arrayBuf.slice(0));
-    }catch(err){
-      log("decodeAudioData error:", err);
-      try{ await audioCtx.close(); }catch(_){}
-      throw new Error("Не удалось декодировать аудио дорожку (кодек/браузер). Попробуйте другое видео или перекодируйте в MP4 (AAC).");
-    }
-
-    // Берём моно (смешиваем каналы)
-    const sr = audioBuffer.sampleRate;
-    const length = audioBuffer.length;
-    const ch0 = audioBuffer.getChannelData(0);
-    const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : null;
-
-    const mono = new Float32Array(length);
-    if(ch1){
-      for(let i=0;i<length;i++) mono[i] = 0.5*(ch0[i] + ch1[i]);
-    } else {
-      mono.set(ch0);
-    }
-
-    // Resample -> 16000 Hz (Whisper любит 16k)
-    const targetSR = 16000;
-    const ratio = targetSR / sr;
-    const newLen = Math.round(length * ratio);
-    const resampled = new Float32Array(newLen);
-
-    // простой линейный ресэмплинг (достаточно для речи)
-    for(let i=0;i<newLen;i++){
-      const srcPos = i / ratio;
-      const i0 = Math.floor(srcPos);
-      const i1 = Math.min(i0 + 1, length - 1);
-      const t = srcPos - i0;
-      resampled[i] = mono[i0]*(1-t) + mono[i1]*t;
-    }
-
-    try{ await audioCtx.close(); }catch(_){}
-
-    return resampled;
-  }
-
-  // ============================================================
-  // Segments build from Whisper timestamps
-  // ============================================================
-  function buildSegmentsFromWhisper(result){
-    // transformers whisper может вернуть:
-    // - result.text
-    // - result.chunks: [{text, timestamp:[start,end]}...]
-    const chunks = result?.chunks || [];
-    const segs = [];
-
-    for(const c of chunks){
-      if(!c?.text) continue;
-      const ts = c.timestamp || c.timestamps || c.time || null;
-      // ожидаем [start,end]
-      if(Array.isArray(ts) && ts.length >= 2){
-        const start = Number(ts[0]);
-        const end = Number(ts[1]);
-        if(Number.isFinite(start) && Number.isFinite(end) && end > start){
-          segs.push(clampSegment({
-            id: state.nextSegId++,
-            start,
-            end,
-            text: c.text
-          }));
-        }
-      }
-    }
-
-    // Если chunks пустые — fallback: один сегмент без таймингов
-    if(segs.length === 0 && result?.text){
-      segs.push(clampSegment({
-        id: state.nextSegId++,
-        start: 0,
-        end: Math.min(state.durationSec, 4),
-        text: result.text
-      }));
-    }
-
-    // Дополнительно: пост-объединение/нарезка чтобы сегменты были ~1–4 сек
-    return normalizeSegments(segs);
-  }
-
-  function normalizeSegments(segs){
-    if(segs.length === 0) return segs;
-
-    const out = [];
-    let cur = null;
-
-    for(const s of segs){
-      if(!cur){
-        cur = {...s};
-        continue;
-      }
-      const curLen = cur.end - cur.start;
-      const nextLen = s.end - s.start;
-
-      // Если текущий сегмент короткий и следующий рядом — объединяем
-      if(curLen < 1.2 && (s.start - cur.end) < 0.35 && (cur.end - cur.start + nextLen) <= 4.2){
-        cur.end = s.end;
-        cur.text = (cur.text + " " + s.text).trim();
-      } else {
-        out.push(clampSegment(cur));
-        cur = {...s};
-      }
-    }
-    if(cur) out.push(clampSegment(cur));
-
-    // Перенумеруем id аккуратно
-    out.forEach((s, i) => s.id = i+1);
-    state.nextSegId = out.length + 1;
-
-    return out;
-  }
-
-  // ============================================================
-  // Overlay sync + animations
-  // ============================================================
-  function startOverlayLoop(){
-    if(state.overlayRAF) cancelAnimationFrame(state.overlayRAF);
-    const tick = () => {
-      const t = ui.video.currentTime || 0;
-      const seg = findSegmentAtTime(t);
-      if(seg){
-        if(state.activeSegId !== seg.id){
-          state.activeSegId = seg.id;
-          showOverlayText(seg.text, true, seg.id);
-        }
-      } else {
-        if(state.activeSegId !== null){
-          state.activeSegId = null;
-          hideOverlay();
-        }
-      }
-      state.overlayRAF = requestAnimationFrame(tick);
-    };
-    state.overlayRAF = requestAnimationFrame(tick);
-  }
-
-  function findSegmentAtTime(t){
-    for(const seg of state.segments){
-      if(t >= seg.start && t <= seg.end) return seg;
-    }
-    return null;
-  }
-
-  function hideOverlay(){
-    ui.subText.className = "";
-    ui.subText.style.opacity = 0;
-    ui.subText.textContent = "";
-  }
-
-  let typewriterToken = 0;
-  function showOverlayText(text, isNew, segId=null){
-    ui.subText.className = "";
-    ui.subText.style.opacity = 0;
-    document.documentElement.style.setProperty("--anim-duration", `${parseFloat(ui.animDuration.value)}s`);
-
-    const type = ui.animType.value;
-    if(!isNew){
-      ui.subText.textContent = text;
-      ui.subText.classList.add("anim-fade");
-      return;
-    }
-
-    if(type === "fade"){
-      ui.subText.textContent = text;
-      ui.subText.classList.add("anim-fade");
-    } else if(type === "bounce"){
-      ui.subText.textContent = text;
-      ui.subText.classList.add("anim-bounce");
-    } else if(type === "scale"){
-      ui.subText.textContent = text;
-      ui.subText.classList.add("anim-scale");
-    } else if(type === "typewriter"){
-      ui.subText.textContent = "";
-      ui.subText.classList.add("anim-typewriter");
-      runTypewriter(text, parseFloat(ui.animDuration.value), segId);
-    } else {
-      ui.subText.textContent = text;
-      ui.subText.classList.add("anim-fade");
-    }
-  }
-
-  function runTypewriter(fullText, durSec, segId){
-    const token = ++typewriterToken;
-    const total = fullText.length;
-    const durMs = Math.max(120, durSec * 1000);
-    const stepMs = Math.max(12, durMs / Math.max(1, total));
-    let i = 0;
-    const iv = setInterval(() => {
-      if(token !== typewriterToken){ clearInterval(iv); return; }
-      if(segId !== null && state.activeSegId !== null && segId !== state.activeSegId){ clearInterval(iv); return; }
-      i++;
-      ui.subText.textContent = fullText.slice(0, i);
-      if(i >= total) clearInterval(iv);
-    }, stepMs);
-  }
-
-  // ============================================================
-  // Table
-  // ============================================================
-  function renderSegmentsTable(){
-    const segs = state.segments.slice().sort((a,b)=>a.start-b.start);
-    if(segs.length === 0){
-      ui.tbody.innerHTML = `<tr><td colspan="5" class="small-muted">Пока пусто.</td></tr>`;
-      return;
-    }
-    ui.tbody.innerHTML = segs.map((seg, idx) => `
-      <tr data-id="${seg.id}">
-        <td class="mono">${idx+1}</td>
-        <td class="mono">${formatTimeSRT(seg.start)}</td>
-        <td class="mono">${formatTimeSRT(seg.end)}</td>
-        <td>
-          <div class="seg-text">${escapeHtml(seg.text)}</div>
-          <div class="seg-edit d-none"><textarea class="form-control form-control-sm mt-1" rows="2">${escapeHtml(seg.text)}</textarea></div>
-        </td>
-        <td>
-          <div class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-sm btn-outline-light" data-action="edit">Редактировать</button>
-            <button class="btn btn-sm btn-outline-light d-none" data-action="save">Сохранить</button>
-            <button class="btn btn-sm btn-outline-light d-none" data-action="cancel">Отмена</button>
-            <button class="btn btn-sm btn-outline-light" data-action="seek">▶</button>
-            <button class="btn btn-sm btn-outline-light" data-action="delete">Удалить</button>
-          </div>
-        </td>
-      </tr>
-    `).join("");
-
-    ui.tbody.querySelectorAll("tr").forEach(tr => {
-      tr.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if(!btn) return;
-        const action = btn.dataset.action;
-        const id = parseInt(tr.dataset.id, 10);
-        handleRowAction(tr, id, action);
-      });
-    });
-  }
-
-  function handleRowAction(tr, id, action){
-    const seg = state.segments.find(s => s.id === id);
-    if(!seg) return;
-
-    const textDiv = tr.querySelector(".seg-text");
-    const editWrap = tr.querySelector(".seg-edit");
-    const textarea = tr.querySelector("textarea");
-
-    const btnEdit = tr.querySelector('button[data-action="edit"]');
-    const btnSave = tr.querySelector('button[data-action="save"]');
-    const btnCancel = tr.querySelector('button[data-action="cancel"]');
-
-    if(action === "edit"){
-      textDiv.classList.add("d-none"); editWrap.classList.remove("d-none");
-      btnEdit.classList.add("d-none"); btnSave.classList.remove("d-none"); btnCancel.classList.remove("d-none");
-      textarea.focus(); return;
-    }
-    if(action === "cancel"){
-      textarea.value = seg.text;
-      textDiv.classList.remove("d-none"); editWrap.classList.add("d-none");
-      btnEdit.classList.remove("d-none"); btnSave.classList.add("d-none"); btnCancel.classList.add("d-none");
-      return;
-    }
-    if(action === "save"){
-      seg.text = (textarea.value||"").replace(/\s+/g," ").trim();
-      textDiv.textContent = seg.text || "(пусто)";
-      textDiv.classList.remove("d-none"); editWrap.classList.add("d-none");
-      btnEdit.classList.remove("d-none"); btnSave.classList.add("d-none"); btnCancel.classList.add("d-none");
-      setStatus("Сегмент обновлён.", "ok", 100);
-      return;
-    }
-    if(action === "seek"){
-      ui.video.currentTime = seg.start;
-      ui.video.play().catch(()=>{});
-      setStatus(`Переход к ${formatTimeSRT(seg.start)}.`, "ok", 100);
-      return;
-    }
-    if(action === "delete"){
-      state.segments = state.segments.filter(s => s.id !== id);
-      if(state.activeSegId === id){ state.activeSegId = null; hideOverlay(); }
-      // перенумеруем
-      state.segments.forEach((s,i)=>s.id=i+1);
-      state.nextSegId = state.segments.length + 1;
-      renderSegmentsTable();
-      ui.downloadSrtBtn.disabled = state.segments.length === 0;
-      ui.downloadVttBtn.disabled = state.segments.length === 0;
-      setStatus(`Удалено.`, "ok", 100);
-      return;
-    }
-  }
-
-  // ============================================================
-  // Export
-  // ============================================================
-  function exportSRT(segments){
-    const segs = segments.slice().sort((a,b)=>a.start-b.start).map(clampSegment);
-    let out = "";
-    segs.forEach((seg, i) => {
-      out += `${i+1}\n`;
-      out += `${formatTimeSRT(seg.start)} --> ${formatTimeSRT(seg.end)}\n`;
-      out += `${seg.text}\n\n`;
-    });
-    return out.trim() + "\n";
-  }
-  function exportVTT(segments){
-    const segs = segments.slice().sort((a,b)=>a.start-b.start).map(clampSegment);
-    let out = "WEBVTT\n\n";
-    segs.forEach((seg) => {
-      out += `${formatTimeVTT(seg.start)} --> ${formatTimeVTT(seg.end)}\n`;
-      out += `${seg.text}\n\n`;
-    });
-    return out.trim() + "\n";
-  }
-
-  ui.downloadSrtBtn.addEventListener("click", () => {
-    if(state.segments.length === 0) return;
-    downloadTextFile("subtitles.srt", exportSRT(state.segments), "application/x-subrip;charset=utf-8");
-  });
-  ui.downloadVttBtn.addEventListener("click", () => {
-    if(state.segments.length === 0) return;
-    downloadTextFile("subtitles.vtt", exportVTT(state.segments), "text/vtt;charset=utf-8");
-  });
-
-  // ============================================================
-  // Run generation (Whisper)
-  // ============================================================
-  ui.genBtn.addEventListener("click", async () => {
-    if(state.running) return;
-    const file = ui.videoInput.files?.[0];
-    if(!file){ setStatus("Сначала загрузите видео.", "warn", 0); return; }
-    if(!ui.langSelect.value){ setStatus("Выберите язык.", "warn", 0); return; }
-    if(state.durationSec > 60){ setStatus("Видео > 60 сек — запрещено.", "bad", 0); return; }
-
-    state.running = true;
-    updateGenState();
-    ui.genBtn.textContent = "Работаю…";
-    ui.downloadSrtBtn.disabled = true;
-    ui.downloadVttBtn.disabled = true;
-
-    try{
-      // 1) pipeline
-      const lang = ui.langSelect.value; // ru / en
-      const pipe = await ensurePipeline(lang);
-
-      // 2) extract audio
-      const pcm16k = await extractAudioPCM16kFromVideoFile(file);
-
-      // 3) run ASR
-      setStatus("Распознаём (Whisper, оффлайн)…", "ok", 75);
-
-      // В transformers.js для whisper:
-      // - return_timestamps: true -> chunks
-      // - language: "ru"/"en"
-      // - task: "transcribe"
-      const result = await pipe(pcm16k, {
-        return_timestamps: true,
-        language: lang,
-        task: "transcribe",
-      });
-
-      log("ASR result:", result);
-
-      // 4) build segments
-      setStatus("Собираем сегменты…", "ok", 92);
-      state.nextSegId = 1;
-      state.segments = buildSegmentsFromWhisper(result);
-
-      renderSegmentsTable();
-
-      // 5) enable downloads
-      ui.downloadSrtBtn.disabled = state.segments.length === 0;
-      ui.downloadVttBtn.disabled = state.segments.length === 0;
-
-      // 6) start overlay sync
-      startOverlayLoop();
-
-      setStatus(`Готово. Сегментов: ${state.segments.length}.`, "ok", 100);
-    }catch(err){
-      log("Generation error:", err);
-      setStatus(`Ошибка: ${err?.message || err}`, "bad", 0);
-    }finally{
-      state.running = false;
-      ui.genBtn.textContent = "Сгенерировать";
-      updateGenState();
-    }
-  });
-
-  // ============================================================
-  // Reset / cleanup
-  // ============================================================
-  ui.resetBtn.addEventListener("click", () => {
-    cleanupSegmentsOnly();
-    resetSettings();
-    setStatus("Сброшено. Загрузите видео и выберите язык.", "neutral", 0);
-  });
-
-  function cleanupSegmentsOnly(){
-    state.segments = [];
-    state.nextSegId = 1;
-    state.activeSegId = null;
-    renderSegmentsTable();
-    hideOverlay();
-    ui.downloadSrtBtn.disabled = true;
-    ui.downloadVttBtn.disabled = true;
-    ui.progressBar.style.width = "0%";
-  }
-
-  window.addEventListener("beforeunload", () => {
-    if(state.videoUrl) URL.revokeObjectURL(state.videoUrl);
-  });
-
-  // ============================================================
-  // Init defaults
-  // ============================================================
-  function initDefaultRanges(){
-    ui.fontSize.value = DEFAULTS.subSize;
-    ui.yPos.value = DEFAULTS.subY;
-    ui.bgAlpha.value = DEFAULTS.subBgAlpha;
-    ui.stroke.value = DEFAULTS.subStroke;
-    ui.shadow.value = DEFAULTS.subShadow;
-    ui.animDuration.value = DEFAULTS.animDuration;
-    applySettings();
-  }
-  initDefaultRanges();
-
-  // ============================================================
-  // Overlay sync while playing (also works after generation)
-  // ============================================================
-  ui.video.addEventListener("play", () => startOverlayLoop());
-  ui.video.addEventListener("seeked", () => startOverlayLoop());
-</script>
+  <script src="script.js"></script>
 </body>
 </html>
