@@ -3,16 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Auto Subtitles (Browser)</title>
+  <title>Burn-in Subtitles (MP4)</title>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Open+Sans:wght@400;600;800&family=Roboto:wght@400;700;900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Open+Sans:wght@400;700;900&family=Roboto:wght@400;700;900&display=swap"
     rel="stylesheet"
   />
-
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -21,23 +19,17 @@
       <div class="brand">
         <div class="logo">CC</div>
         <div>
-          <div class="title">Auto Subtitles</div>
-          <div class="subtitle">В браузере • До 1 минуты • RU / EN</div>
+          <div class="title">Burn-in Subtitles</div>
+          <div class="subtitle">Распознавание из видео → “вшивка” → MP4 download</div>
         </div>
       </div>
-      <div class="badge">Whisper / Transformers.js</div>
+      <div class="badge">ffmpeg.wasm + OpenAI (через прокси)</div>
     </header>
 
     <main class="grid">
-      <!-- Player -->
-      <section class="playerCard">
+      <section class="card">
         <div class="playerWrap">
           <video id="video" class="video" controls playsinline></video>
-
-          <!-- Overlay subtitles -->
-          <div id="subtitleOverlay" class="subtitleOverlay" aria-live="polite">
-            <div id="subtitleText" class="subtitleText">Загрузите видео и нажмите “Сгенерировать”</div>
-          </div>
         </div>
 
         <div class="statusRow">
@@ -46,21 +38,27 @@
             <div class="progressBar" id="progressBar"></div>
           </div>
         </div>
+
+        <div class="row2 pad">
+          <a id="downloadLink" class="btn disabled" download="subtitled.mp4" href="#">Скачать MP4 с субтитрами</a>
+          <button id="previewSrt" class="btn">Показать SRT</button>
+        </div>
       </section>
 
-      <!-- Controls (Glassmorphism) -->
       <section class="panel glass">
-        <h2>Панель управления</h2>
+        <h2>Параметры</h2>
 
         <div class="field">
           <label>Видео (MP4 / WebM, до 1 минуты)</label>
           <input id="file" type="file" accept="video/mp4,video/webm" />
-          <div class="hint">Совет: для точного тайминга лучше Whisper. Web Speech API менее точен.</div>
+          <div class="hint">
+            Дальше всё делается в браузере (кроме распознавания — через /api/transcribe).
+          </div>
         </div>
 
         <div class="row2">
           <div class="field">
-            <label>Язык распознавания</label>
+            <label>Язык</label>
             <div class="segmented">
               <input type="radio" name="lang" id="langRu" value="ru" checked />
               <label for="langRu">Русский</label>
@@ -70,23 +68,26 @@
           </div>
 
           <div class="field">
-            <label>Источник распознавания</label>
-            <select id="engine">
-              <option value="whisper" selected>OpenAI Whisper API (рекомендуется)</option>
-              <option value="transformers">Transformers.js (на клиенте, тяжело)</option>
-              <option value="demo">Demo (быстро проверить UI)</option>
+            <label>Модель (на сервере)</label>
+            <select id="model">
+              <option value="whisper-1" selected>whisper-1</option>
+              <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+              <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
             </select>
           </div>
         </div>
+
+        <hr class="hr"/>
+
+        <h3>Оформление субтитров (вжигаются в видео)</h3>
 
         <div class="row2">
           <div class="field">
             <label>Размер шрифта: <span id="fontSizeVal">44</span>px</label>
             <input id="fontSize" type="range" min="18" max="80" value="44" />
           </div>
-
           <div class="field">
-            <label>Положение Y: <span id="yPosVal">82</span>%</label>
+            <label>Позиция Y: <span id="yPosVal">82</span>%</label>
             <input id="yPos" type="range" min="40" max="95" value="82" />
           </div>
         </div>
@@ -95,43 +96,46 @@
           <div class="field">
             <label>Шрифт</label>
             <select id="fontFamily">
-              <option value="Montserrat, system-ui, sans-serif" selected>Montserrat</option>
-              <option value="Roboto, system-ui, sans-serif">Roboto</option>
-              <option value="'Open Sans', system-ui, sans-serif">Open Sans</option>
+              <option value="Montserrat" selected>Montserrat</option>
+              <option value="Roboto">Roboto</option>
+              <option value="Open Sans">Open Sans</option>
             </select>
           </div>
 
           <div class="field">
-            <label>Анимация</label>
-            <select id="anim">
-              <option value="fade" selected>Fade (затухание)</option>
-              <option value="bounce">Bounce (отскок)</option>
-              <option value="scale">Scale (увеличение)</option>
-              <option value="typewriter">Typewriter (буквы)</option>
+            <label>Анимация (только для предпросмотра НЕ нужна)</label>
+            <select id="anim" disabled>
+              <option value="fade" selected>Fade</option>
+              <option value="bounce">Bounce</option>
+              <option value="scale">Scale</option>
+              <option value="typewriter">Typewriter</option>
             </select>
+            <div class="hint">При burn-in анимации в текст “внутри видео” обычно не вшивают.</div>
           </div>
         </div>
 
         <div class="row2">
-          <button id="generate" class="btn primary">Сгенерировать субтитры</button>
+          <button id="generate" class="btn primary">1) Распознать + 2) Вшить + 3) Подготовить MP4</button>
           <button id="clear" class="btn">Очистить</button>
         </div>
 
         <details class="notes">
-          <summary>Примечания по Whisper / Transformers.js</summary>
+          <summary>Почему нужен /api/transcribe?</summary>
           <ul>
-            <li><b>Whisper API</b>: требует сервер или прокси (не храните ключ в фронтенде). Тут оставлена заглушка.</li>
-            <li><b>Transformers.js</b>: локально в браузере возможно, но тяжело: модели большие, нужен COOP/COEP для некоторых сценариев.</li>
+            <li>API-ключ OpenAI нельзя хранить в браузере — его украдут.</li>
+            <li>Прокси вызывает <code>/v1/audio/transcriptions</code> и отдаёт сегменты обратно. :contentReference[oaicite:1]{index=1}</li>
           </ul>
         </details>
       </section>
     </main>
 
     <footer class="footer">
-      <span>Наложение субтитров: CSS overlay (можно заменить на Canvas при желании).</span>
+      Итог: скачиваемый MP4 уже содержит “вшитые” субтитры.
     </footer>
   </div>
 
+  <!-- ffmpeg.wasm (UMD) -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
